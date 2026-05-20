@@ -324,13 +324,17 @@ else:
                 if not df_cliente.empty:
                     col_card1, col_card2, col_card3, col_card4 = st.columns(4)
                     col_card1.metric("📋 Total Processos", f"{len(df_cliente)} ativos")
-                    col_card2.metric("🚢 Containers (40HC)", f"{int(df_cliente[\"Total container 40'\"].sum())} un.")
+                    
+                    # Evitando o erro das aspas duplas usando o método .get() de forma limpa:
+                    total_containers_40hc = int(df_cliente.get("Total container 40'", pd.Series([0])).sum())
+                    col_card2.metric("🚢 Containers (40HC)", f"{total_containers_40hc} un.")
+                    
                     col_card3.metric("📦 Volumes / Pallets", f"{int(df_cliente['Qtde. volumes'].sum())} un.")
                     col_card4.metric("📐 Volume Total (M³)", f"{df_cliente['Metros cúbicos'].sum():,.2f} m³")
                     
                     st.markdown("---")
                     busca_cliente = st.text_input("🔍 Pesquisar por Nº de Processo, Mercadoria ou PO#:")
-                    df_exib_c = df_cliente[['Nº processo house', 'Ref. cliente', 'Nº. Booking', 'Mercadoria', 'Total container 40\'', 'Qtde. volumes', 'Metros cúbicos', 'Situação embarque amigável']].copy()
+                    df_exib_c = df_cliente[['Nº processo house', 'Ref. cliente', 'Nº. Booking', 'Mercadoria', "Total container 40'", 'Qtde. volumes', 'Metros cúbicos', 'Situação embarque amigável']].copy()
                     df_exib_c.columns = ['Nº Processo', 'PO#', 'Booking', 'Mercadoria', '40HC', 'Pallets', 'Volume (M³)', 'Status do Embarque']
                     
                     if busca_cliente:
