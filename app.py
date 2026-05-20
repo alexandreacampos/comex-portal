@@ -16,7 +16,7 @@ USUARIOS = {
     "evandro": {"senha": "em2026", "perfil": "dono", "nome": "EVANDRO MARINI"}
 }
 
-# --- CONFIGURAÇÃO DO LINK DO GOOGLE SHEETS (COLADO AQUI!) ---
+# --- CONFIGURAÇÃO DO LINK DO GOOGLE SHEETS ---
 LINK_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQd4qDmhLei9TiIuEb7n5kULXdYgmlsVGjGKDtXKuCzU5untJYDCnngCxoZ10dHnvSFVz2E1opKyb4s/pub?gid=416260151&single=true&output=csv"
 
 # Dicionário auxiliar para tradução dos meses abreviados para Português
@@ -87,13 +87,18 @@ def calcular_financeiro_estrito(linha):
     venda = limpar_e_converter_numero(linha.get('Venda USD', 0.0))
     recebido = limpar_e_converter_numero(linha.get('Venda Recebida USD', 0.0))
     
+    # Ajuste para bater com o Excel: O recebido é o que está explicitamente na coluna recebida
     saldo_calculado = max(0.0, venda - recebido)
     
     if status_cobranca == "Tudo Recebido":
-        return pd.Series([venda, recebido, 0.0, 0.0])
+        # Se está tudo recebido e por acaso a coluna recebido estiver menor que a venda, força a venda
+        realmente_recebido = max(venda, recebido)
+        return pd.Series([venda, realmente_recebido, 0.0, 0.0])
     elif status_cobranca == "Cobrança Enviada":
+        # Contas a receber real baseado no saldo que falta da venda
         return pd.Series([venda, recebido, saldo_calculado, 0.0])
     else:
+        # Previsão futura: assume o que falta receber como futuro se ainda não foi cobrado
         return pd.Series([venda, recebido, 0.0, saldo_calculado])
 
 def auditoria_custos_pagar(linha):
@@ -164,7 +169,6 @@ def calcular_vencimento_e_alertas(linha):
 
 def carregar_dados():
     try:
-        # Lendo diretamente da nuvem do Google Sheets
         df = pd.read_csv(LINK_GOOGLE_SHEETS)
         df.columns = df.columns.str.strip()
         
@@ -228,7 +232,6 @@ else:
                 st.markdown(f"*Usuário ativo: {st.session_state.nome_usuario}*")
                 st.markdown("---")
                 
-                # Botão exclusivo para recarregar os dados da nuvem na hora
                 if st.button("🔄 Atualizar Dados do Google Sheets"):
                     st.rerun()
                 
@@ -406,8 +409,8 @@ else:
                         df_base_datas['Mês_PT'] = df_base_datas['Data_Embarque'].apply(lambda d: f"{MESES_PT[d.month]}/{d.year}")
                         lista_meses_ordenados = df_base_datas.sort_values('Ano_Mes_Chave')['Mês_PT'].unique()
                         
-                        # --- 1º QUADRANTE: VOLUME MENSAL POR PAÍS DE DESTINIO ---
-                        st.markdown("### 🌐 Volume Mensal Por País De Destinio")
+                        # --- 1º QUADRANTE: VOLUME MENSAL POR PAÍS DE DESTINO ---
+                        st.markdown("### 🌐 Volume Mensal Por País De Destino")
                         col_m1, col_m2 = st.columns([1.3, 1.7])
                         
                         with col_m1:
@@ -519,7 +522,6 @@ else:
                     }
                 )
                 
-                # Subtotal dinâmico da listagem
                 total_processos_f = len(df_tabela_operacional)
                 total_40hc_f = df_tabela_operacional['40HC'].sum()
                 total_pallets_f = df_tabela_operacional['Pallets'].sum()
