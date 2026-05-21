@@ -374,12 +374,15 @@ else:
                         Aguarda_Draft=('Aguarda Draft USD', 'sum'),
                         Previsao_Futura=('Previsão Cobrança Futura USD', 'sum')
                     ).reset_index()
-                    df_resumo_financeiro.columns = ['Cliente', 'Processos', 'Já Recebido', 'Falta Receber, Cobranças Já Enviadas', 'Aguarda Draft', 'Previsão fábrica']
-                    df_resumo_financeiro['Processos'] = df_resumo_financeiro['Processos'].astype(int)
-                    df_resumo_financeiro['Já Recebido'] = df_resumo_financeiro['Já Recebido'].map('$ {:,.2f}'.format)
-                    df_resumo_financeiro['Falta Receber (Real)'] = df_resumo_financeiro['Falta Receber, Cobranças Já Enviadas'].map('$ {:,.2f}'.format)
+                    
+                    # Definindo títulos curtos e limpos para a tabela (evita cortar o texto)
+                    df_resumo_financeiro.columns = ['Cliente', 'Qtd Proc', 'Recebido', 'À Receber(Já Cobrado)', 'Aguarda Draft', 'Ag. Prev. Fábrica']
+                    
+                    df_resumo_financeiro['Qtd Proc'] = df_resumo_financeiro['Qtd Proc'].astype(int)
+                    df_resumo_financeiro['Recebido'] = df_resumo_financeiro['Recebido'].map('$ {:,.2f}'.format)
+                    df_resumo_financeiro['À Receber(Já Cobrado)'] = df_resumo_financeiro['À Receber(Já Cobrado)'].map('$ {:,.2f}'.format)
                     df_resumo_financeiro['Aguarda Draft'] = df_resumo_financeiro['Aguarda Draft'].map('$ {:,.2f}'.format)
-                    df_resumo_financeiro['Previsão fábrica'] = df_resumo_financeiro['Previsão fábrica'].map('$ {:,.2f}'.format)
+                    df_resumo_financeiro['Ag. Prev. Fábrica'] = df_resumo_financeiro['Ag. Prev. Fábrica'].map('$ {:,.2f}'.format)
                     
                     st.dataframe(df_resumo_financeiro, use_container_width=True, hide_index=True)
                     
@@ -390,6 +393,7 @@ else:
                     val_draft = df_filtrado['Aguarda Draft USD'].sum()
                     val_futuro = df_filtrado['Previsão Cobrança Futura USD'].sum()
                     
+                    # O nome detalhado e completo continua aqui no painel visual cinza!
                     html_indicadores = f"""
                     <div style="display: flex; gap: 15px; justify-content: space-between; flex-wrap: wrap; background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #0066cc;">
                         <div style="flex: 1; min-width: 130px; display: flex; flex-direction: column; justify-content: center;">
@@ -397,7 +401,7 @@ else:
                             <span style="font-size: 18px; font-weight: bold; color: #2e7d32;">$ {val_recebido:,.2f}</span>
                         </div>
                         <div style="flex: 1; min-width: 130px; display: flex; flex-direction: column; justify-content: center;">
-                            <span style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px;">Contas a Receber, Cobranças Já Enviadas</span>
+                            <span style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px;">Falta Receber, cobrança já enviada</span>
                             <span style="font-size: 18px; font-weight: bold; color: #c62828;">$ {val_a_receber:,.2f}</span>
                         </div>
                         <div style="flex: 1; min-width: 130px; display: flex; flex-direction: column; justify-content: center;">
