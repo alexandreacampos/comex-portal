@@ -373,22 +373,23 @@ else:
                         }
                     )
                     
-                with col_tabela2:
+with col_tabela2:
                     st.markdown("#### 💵 Posição Financeira por Cliente")
+                    
+                    # 1. REMOVIDO: Tiramos o 'Total_Recebido' de dentro do agg()
                     df_resumo_financeiro = df_filtrado.groupby('Cliente').agg(
                         Qtd_Processos=('Nº processo house', 'count'),
-                        Total_Recebido=('Venda Recebida USD', 'sum'),
                         Saldo_A_Receber_Real=('Saldo a Receber Real USD', 'sum'),
                         Aguarda_Draft=('Aguarda Draft USD', 'sum'),
                         Previsao_Futura=('Previsão Cobrança Futura USD', 'sum')
                     ).reset_index()
                     
-                    # Definindo títulos curtos e limpos para a tabela (evita cortar o texto)
-                    df_resumo_financeiro.columns = ['Cliente', 'Qtd Proc', 'Recebido', 'À Receber(Já Cobrado)', 'Aguarda Draft', 'Ag. Prev. Fábrica']
+                    # 2. AJUSTADO: Removido o nome 'Recebido' da lista para bater com o novo tamanho da tabela
+                    df_resumo_financeiro.columns = ['Cliente', 'Qtd Proc', 'À Receber(Já Cobrado)', 'Aguarda Draft', 'Ag. Prev. Fábrica']
                     
                     df_resumo_financeiro['Qtd Proc'] = df_resumo_financeiro['Qtd Proc'].astype(int)
-                    df_resumo_financeiro['Recebido'] = df_resumo_financeiro['Recebido'].map('$ {:,.2f}'.format)
-                    df_resumo_financeiro['À Receber(Já Cobrado)'] = df_resumo_financeiro['À Receber(Já Cobrado)'].map('$ {:,.2f}'.format)
+                    # REMOVIDO: A linha que formatava a coluna 'Recebido' com o cifrão $
+                    df_resumo_financeiro['À Receber(Já Cobrado)'] = df_resumo_financeiro['À Receber(Já Cobrado)' ] .map('$ {:,.2f}'.format)
                     df_resumo_financeiro['Aguarda Draft'] = df_resumo_financeiro['Aguarda Draft'].map('$ {:,.2f}'.format)
                     df_resumo_financeiro['Ag. Prev. Fábrica'] = df_resumo_financeiro['Ag. Prev. Fábrica'].map('$ {:,.2f}'.format)
                     
@@ -396,18 +397,14 @@ else:
                     
                     st.markdown("<br><h5 style='margin-bottom:12px; color: #333;'>📐 Indicadores Financeiros (Subtotal do Filtro)</h5>", unsafe_allow_html=True)
                     
-                    val_recebido = df_filtrado['Venda Recebida USD'].sum()
+                    # Mantemos o cálculo aqui caso precise usar em outro lugar, mas removemos do bloco visual
                     val_a_receber = df_filtrado['Saldo a Receber Real USD'].sum()
                     val_draft = df_filtrado['Aguarda Draft USD'].sum()
                     val_futuro = df_filtrado['Previsão Cobrança Futura USD'].sum()
                     
-                    # O nome detalhado e completo continua aqui no painel visual cinza!
+                    # 3. AJUSTADO: O bloco HTML agora só tem as 3 colunas de valores a entrar
                     html_indicadores = f"""
                     <div style="display: flex; gap: 15px; justify-content: space-between; flex-wrap: wrap; background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #0066cc;">
-                        <div style="flex: 1; min-width: 130px; display: flex; flex-direction: column; justify-content: center;">
-                            <span style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px;">Total Já Recebido</span>
-                            <span style="font-size: 18px; font-weight: bold; color: #2e7d32;">$ {val_recebido:,.2f}</span>
-                        </div>
                         <div style="flex: 1; min-width: 130px; display: flex; flex-direction: column; justify-content: center;">
                             <span style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px;">Falta Receber, cobrança já enviada</span>
                             <span style="font-size: 18px; font-weight: bold; color: #c62828;">$ {val_a_receber:,.2f}</span>
