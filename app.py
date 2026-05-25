@@ -373,7 +373,7 @@ else:
                         }
                     )
                     
-with col_tabela2:
+                with col_tabela2:
                     st.markdown("#### 💵 Posição Financeira por Cliente")
                     
                     # 1. REMOVIDO: Tiramos o 'Total_Recebido' de dentro do agg()
