@@ -152,7 +152,15 @@ def calcular_vencimento_e_alertas(linha):
         return pd.Series([pd.NaT, 0, "", "Vencimento Indefinido (Sem ETA)"])
         
     try:
-        dt_chegada = pd.to_datetime(data_chegada)
+        # ----------------------------------------------------------------------
+        # TRAVA DE SEGURANÇA: dayfirst=True FORÇA O FORMATO BRASILEIRO (DD/MM/AAAA)
+        # ----------------------------------------------------------------------
+        dt_chegada = pd.to_datetime(data_chegada, dayfirst=True, errors='coerce')
+        
+        # Se a data falhar por algum motivo e virar NaT, evita cálculo errado
+        if pd.isna(dt_chegada):
+            return pd.Series([pd.NaT, 0, "", "Erro no formato da data"])
+            
         dt_vencimento = dt_chegada - timedelta(days=7)
         
         if dt_vencimento.weekday() == 5:
