@@ -76,17 +76,24 @@ def limpar_e_converter_numero(valor):
 def calcular_status_cobranca(linha):
     cobranca_excel = str(linha.get('Cobrança enviada', '')).strip().upper()
     booking_excel = str(linha.get('Nº. Booking', '')).strip()
+    
+    # Buscamos a situação original para não ter erro de leitura
+    situacao_original = str(linha.get('Situação embarque', '')).strip().lower()
     status_traduzido = traduzir_status(linha.get('Situação embarque', ''))
     
     has_booking = pd.notna(linha.get('Nº. Booking')) and booking_excel != "" and booking_excel != "-" and booking_excel != "Não Informado"
     is_aguardando_prontidao = "confirmar produção" in status_traduzido.lower()
+
+    # 🌟 NOVA REGRA: Se o status for "Aguardando Booking", capturamos aqui
+    is_aguardando_booking = "aguardando booking" in situacao_original or "booking foi solicitado" in status_traduzido.lower()
 
     if "RECEBIDO" in cobranca_excel:
         return "Tudo Recebido"
     elif "SIM" in cobranca_excel:
         return "Cobrança Enviada"
     else:
-        if has_booking and not is_aguardando_prontidao:
+        # AJUSTADO: Se tiver número de booking OU se o status for "Aguardando Booking", vai para Draft!
+        if (has_booking or is_aguardando_booking) and not is_aguardando_prontidao:
             return "Aguardando Draft"
         else:
             return "Previsão Futura"
