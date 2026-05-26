@@ -239,9 +239,9 @@ st.caption("💡 Select a row to view containers.")
 df_exibicao = df_filtrado[['Shipment Status', 'Nº processo house', 'Ref. cliente', 'Mercadoria', "Total container 40'", 'Qtde. volumes', 'Metros cúbicos', 'ETD_Tratado', 'ETA_Tratado', 'POD_Tratado', 'Final_Tratado', 'Billing Status Translated', 'Saldo a Receber Real USD', 'Previsão Cobrança Futura USD']].copy()
 df_exibicao.columns = ['SHIPMENT STATUS', 'PROCESS', 'PO#', 'CARGO DESCRIPTION', "40HC", 'PALLETS', 'CBM (m³)', 'ETD', 'ETA', 'POD', 'FINAL DESTINATION', 'BILLING STATUS', 'BALANCE', 'FUTURE FORECAST']
 
-# Tratamento seguro para exibição de datas (evita fazer a tabela sumir se houver nulos)
-df_exibicao['ETD'] = pd.to_datetime(df_exibicao['ETD']).dt.date
-df_exibicao['ETA'] = pd.to_datetime(df_exibicao['ETA']).dt.date
+# Tratamento seguro para exibição de datas (converte para data limpa sem quebrar com nulos)
+df_exibicao['ETD'] = pd.to_datetime(df_exibicao['ETD'], errors='coerce').dt.date
+df_exibicao['ETA'] = pd.to_datetime(df_exibicao['ETA'], errors='coerce').dt.date
 
 # Renderização da Tabela Executiva
 selecao_tabela = st.dataframe(
@@ -250,44 +250,36 @@ selecao_tabela = st.dataframe(
         "40HC": st.column_config.NumberColumn(format="%d"),
         "PALLETS": st.column_config.NumberColumn(format="%d"),
         "CBM (m³)": st.column_config.NumberColumn(format="%.2f m³"),
-        "BALANCE": st.column_config.NumberColumn(format="$,.2f"),
-        "FUTURE FORECAST": st.column_config.NumberColumn(format="$,.2f"),
+        # CORREÇÃO: Formato numérico corrigido (Streamlit insere a moeda separada se necessário ou exibimos padrão americano)
+        "BALANCE": st.column_config.NumberColumn(format="%.2f"),
+        "FUTURE FORECAST": st.column_config.NumberColumn(format="%.2f"),
         "ETD": st.column_config.DateColumn(format="DD/MM/YYYY"),
         "ETA": st.column_config.DateColumn(format="DD/MM/YYYY")
     }
 )
 
-# --- BLOCO DE TOTAIS ÚNICO (Alinhado à direita abaixo da tabela) ---
+# --- NOVO DESIGN: BLOCO DE TOTAIS EM UMA ÚNICA LINHA ---
 tot_40hc = int(df_exibicao["40HC"].sum())
 tot_pallets = int(df_exibicao["PALLETS"].sum())
 tot_cbm = float(df_exibicao["CBM (m³)"].sum())
 
-st.markdown("") # Pequeno espaçador estético
-_, t_col1, t_col2, t_col3 = st.columns([0.4, 0.2, 0.2, 0.2])
-
-with t_col1:
-    st.markdown(f"""
-        <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
-            <span style="font-size: 11px; color: #6c757d; font-weight: bold; text-transform: uppercase;">Total 40'HC</span>
-            <h4 style="margin: 0; color: #212529; font-weight: 700;">{tot_40hc:,}</h4>
+# CSS Inline elegante e compacto para alinhar tudo na mesma linha
+st.markdown(f"""
+    <div style="display: flex; justify-content: flex-end; gap: 40px; background-color: #f8f9fa; padding: 12px 24px; border-radius: 6px; border: 1px solid #e9ecef; margin-top: 10px; font-family: sans-serif;">
+        <div style="font-size: 14px; color: #495057;">
+            <span style="font-weight: 600; color: #6c757d; text-transform: uppercase; font-size: 12px;">Total 40'HC =</span> 
+            <span style="font-weight: 700; color: #212529; font-size: 15px;">{tot_40hc:,}</span>
         </div>
-    """, unsafe_allow_html=True)
-
-with t_col2:
-    st.markdown(f"""
-        <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
-            <span style="font-size: 11px; color: #6c757d; font-weight: bold; text-transform: uppercase;">Total Pallets</span>
-            <h4 style="margin: 0; color: #212529; font-weight: 700;">{tot_pallets:,}</h4>
+        <div style="font-size: 14px; color: #495057;">
+            <span style="font-weight: 600; color: #6c757d; text-transform: uppercase; font-size: 12px;">Total Pallets =</span> 
+            <span style="font-weight: 700; color: #212529; font-size: 15px;">{tot_pallets:,}</span>
         </div>
-    """, unsafe_allow_html=True)
-
-with t_col3:
-    st.markdown(f"""
-        <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
-            <span style="font-size: 11px; color: #6c757d; font-weight: bold; text-transform: uppercase;">Total Volume</span>
-            <h4 style="margin: 0; color: #212529; font-weight: 700;">{tot_cbm:,.2f} m³</h4>
+        <div style="font-size: 14px; color: #495057;">
+            <span style="font-weight: 600; color: #6c757d; text-transform: uppercase; font-size: 12px;">Total M³ =</span> 
+            <span style="font-weight: 700; color: #212529; font-size: 15px;">{tot_cbm:,.2f} m³</span>
         </div>
-    """, unsafe_allow_html=True)
+    </div>
+""", unsafe_allow_html=True)
 
 st.markdown("---") # Linha divisória antes do detalhamento de containers por clique
 
