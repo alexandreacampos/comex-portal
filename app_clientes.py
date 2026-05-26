@@ -235,71 +235,34 @@ df_filtrado = df_filtrado.reset_index(drop=True)
 st.markdown("### Executive Summary Table")
 st.caption("💡 Select a row to view containers.")
 
-# Criando a cópia para exibição
+# Criando a cópia exata para exibição com as colunas renomeadas
 df_exibicao = df_filtrado[['Shipment Status', 'Nº processo house', 'Ref. cliente', 'Mercadoria', "Total container 40'", 'Qtde. volumes', 'Metros cúbicos', 'ETD_Tratado', 'ETA_Tratado', 'POD_Tratado', 'Final_Tratado', 'Billing Status Translated', 'Saldo a Receber Real USD', 'Previsão Cobrança Futura USD']].copy()
 df_exibicao.columns = ['SHIPMENT STATUS', 'PROCESS', 'PO#', 'CARGO DESCRIPTION', "40HC", 'PALLETS', 'CBM (m³)', 'ETD', 'ETA', 'POD', 'FINAL DESTINATION', 'BILLING STATUS', 'BALANCE', 'FUTURE FORECAST']
 
-# --- BLINDAGEM CONTRA ERROS DE DATA ---
-# Remove marcas de fuso horário se houver e garante que o Streamlit consiga ler mesmo se houver vazios
-df_exibicao['ETD'] = df_exibicao['ETD'].dt.date if pd.api.types.is_datetime64_any_dtype(df_exibicao['ETD']) else df_exibicao['ETD']
-df_exibicao['ETA'] = df_exibicao['ETA'].dt.date if pd.api.types.is_datetime64_any_dtype(df_exibicao['ETA']) else df_exibicao['ETA']
+# Tratamento seguro para exibição de datas (evita fazer a tabela sumir se houver nulos)
+df_exibicao['ETD'] = pd.to_datetime(df_exibicao['ETD']).dt.date
+df_exibicao['ETA'] = pd.to_datetime(df_exibicao['ETA']).dt.date
 
+# Renderização da Tabela Executiva
 selecao_tabela = st.dataframe(
     df_exibicao, use_container_width=True, hide_index=True, on_select="rerun", selection_mode="single-row",
     column_config={
         "40HC": st.column_config.NumberColumn(format="%d"),
         "PALLETS": st.column_config.NumberColumn(format="%d"),
         "CBM (m³)": st.column_config.NumberColumn(format="%.2f m³"),
-        "BALANCE": st.column_config.NumberColumn(format="%,.2f"),
-        "FUTURE FORECAST": st.column_config.NumberColumn(format="%,.2f"),
-        # Mudamos para DateColumn para evitar conflitos com nulos e manter a ordenação perfeita
+        "BALANCE": st.column_config.NumberColumn(format="$,.2f"),
+        "FUTURE FORECAST": st.column_config.NumberColumn(format="$,.2f"),
         "ETD": st.column_config.DateColumn(format="DD/MM/YYYY"),
         "ETA": st.column_config.DateColumn(format="DD/MM/YYYY")
     }
 )
 
-# --- BLOCO DE TOTAIS DA TABELA FILTRADA ---
-tot_40hc = df_exibicao["40HC"].sum()
-tot_pallets = df_exibicao["PALLETS"].sum()
-tot_cbm = df_exibicao["CBM (m³)"].sum()
+# --- BLOCO DE TOTAIS ÚNICO (Alinhado à direita abaixo da tabela) ---
+tot_40hc = int(df_exibicao["40HC"].sum())
+tot_pallets = int(df_exibicao["PALLETS"].sum())
+tot_cbm = float(df_exibicao["CBM (m³)"].sum())
 
-st.markdown("") # Espaçador
-_, t_col1, t_col2, t_col3 = st.columns([0.4, 0.2, 0.2, 0.2])
-
-with t_col1:
-    st.markdown(f"""
-        <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
-            <span style="font-size: 11px; color: #6c757d; font-weight: bold; text-transform: uppercase;">Total 40'HC</span>
-            <h4 style="margin: 0; color: #212529; font-weight: 700;">{tot_40hc:,}</h4>
-        </div>
-    """, unsafe_allow_html=True)
-
-with t_col2:
-    st.markdown(f"""
-        <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
-            <span style="font-size: 11px; color: #6c757d; font-weight: bold; text-transform: uppercase;">Total Pallets</span>
-            <h4 style="margin: 0; color: #212529; font-weight: 700;">{tot_pallets:,}</h4>
-        </div>
-    """, unsafe_allow_html=True)
-
-with t_col3:
-    st.markdown(f"""
-        <div style="background-color: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef; text-align: center;">
-            <span style="font-size: 11px; color: #6c757d; font-weight: bold; text-transform: uppercase;">Total Volume</span>
-            <h4 style="margin: 0; color: #212529; font-weight: 700;">{tot_cbm:,.2f} m³</h4>
-        </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("---")
-
-# --- NOVO: BLOCO DE TOTAIS DA TABELA FILTRADA ---
-# Calcula as somas dinâmicas com base no que está aparecendo na tabela para o cliente
-tot_40hc = df_exibicao["40HC"].sum()
-tot_pallets = df_exibicao["PALLETS"].sum()
-tot_cbm = df_exibicao["CBM (m³)"].sum()
-
-# Cria 3 colunazinhas coladas na direita para alinhar esteticamente com a tabela
-st.markdown("") # Espaçador
+st.markdown("") # Pequeno espaçador estético
 _, t_col1, t_col2, t_col3 = st.columns([0.4, 0.2, 0.2, 0.2])
 
 with t_col1:
@@ -328,7 +291,7 @@ with t_col3:
 
 st.markdown("---") # Linha divisória antes do detalhamento de containers por clique
 
-# Expandir containers ao clicar na linha (Mantém igual)
+# Detalhamento de containers ao clicar na linha da tabela
 linhas_sel = selecao_tabela.get("selection", {}).get("rows", [])
 if linhas_sel:
     dados = df_filtrado.iloc[linhas_sel[0]]
@@ -340,4 +303,5 @@ if linhas_sel:
         cols = st.columns(min(len(cont_list), 6))
         for i, u in enumerate(cont_list):
             with cols[i % 6]: st.code(u, language="")
-    else: st.info("No containers assigned.")
+    else:
+        st.info("No containers assigned.")
