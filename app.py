@@ -523,14 +523,19 @@ else:
                     else:
                         df_operacional_proc[c_financeira] = 0.0
 
-                # Execução dinâmica das fórmulas estruturadas requisitadas
+                # 1. Criar a coluna "Valor SK USD": (Metros cúbicos * 6)
                 df_operacional_proc['Valor SK USD'] = df_operacional_proc['Metros cúbicos'] * 6.0
-                df_operacional_proc['Valor FOB'] = (
+                
+                # 2. Calcular o numerador da fórmula: Venda - Frete - Dut/Despacho - Valor SK
+                numerador_fob = (
                     df_operacional_proc['Venda USD'] - 
                     df_operacional_proc['Frete USD'] - 
                     df_operacional_proc['Dut/Despacho USD'] - 
                     df_operacional_proc['Valor SK USD']
                 )
+                
+                # 3. Calcular o "Valor FOB" dividindo pelo M3 (com proteção para não dividir por zero ou gerar infinito)
+                df_operacional_proc['Valor FOB'] = numerador_fob.divide(df_operacional_proc['Metros cúbicos']).fillna(0.0).replace([float('inf'), float('-inf')], 0.0)
 
                 # Mapeamento do Grid final contendo as 11 colunas originais + 5 novas colunas de valores calculados
                 df_tabela_operacional = df_operacional_proc[[
