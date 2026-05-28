@@ -614,7 +614,9 @@ df_subtotal_excel = pd.DataFrame([{
 
 st.dataframe(df_subtotal_excel, use_container_width=True, hide_index=True)
 
-elif st.session_state.perfil == "cliente":
+
+# --- CORREÇÃO DA SINTAXE MUDANDO DE ELIF PARA IF ---
+if st.session_state.perfil == "cliente":
     cliente_atual = st.session_state.nome_usuario
     aba_cliente, aba_logout_c = st.tabs([f"📦 Portal do Cliente | {cliente_atual}", "🚪 Sair / Logout"])
     
