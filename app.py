@@ -124,8 +124,7 @@ def auditoria_custos_pagar(linha):
     if frete_total == 0.0:
         frete_a_pagar = 0.0
     else:
-        # Adicionado apenas o critério 'falta pagar dut' no final
-        if 'tudo pago' in status_custo or 'falta pagar as locais' in status_custo or 'falta pagar dut e locais' in status_custo or 'falta pagar dut' in status_custo:
+        if 'tudo pago' in status_custo or 'falta pagar as locais' in status_custo or 'falta pagar dut e locais' in status_custo:
             frete_a_pagar = 0.0
         else:
             frete_a_pagar = frete_total
@@ -133,8 +132,7 @@ def auditoria_custos_pagar(linha):
     if dut_total == 0.0:
         dut_a_pagar = 0.0
     else:
-        # Adicionado apenas o critério 'falta pagar frete' no final
-        if 'tudo pago' in status_custo or 'falta pagar as locais' in status_custo or 'falta pagar frete e locais' in status_custo or 'falta pagar frete' in status_custo:
+        if 'tudo pago' in status_custo or 'falta pagar as locais' in status_custo or 'falta pagar frete e locais' in status_custo:
             dut_a_pagar = 0.0
         else:
             dut_a_pagar = dut_total
@@ -524,7 +522,7 @@ else:
                 
                 st.markdown("---")
                 
-# --- LISTAGEM GERAL DE EMBARQUES ---
+                # --- LISTAGEM GERAL DE EMBARQUES ---
                 st.markdown("### 📈 Listagem Geral de Embarques")
                 busca_tabela = st.text_input("🔍 Digite o nome do Cliente ou Nº de Processo para filtrar a tabela abaixo instantaneamente (Estilo Excel):", "")
                 
