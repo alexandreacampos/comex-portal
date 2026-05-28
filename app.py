@@ -525,62 +525,105 @@ else:
                 st.markdown("---")
                 
                 # --- LISTAGEM GERAL DE EMBARQUES ---
-                st.markdown("### 📈 Listagem Geral de Embarques")
-                busca_tabela = st.text_input("🔍 Digite o nome do Cliente ou Nº de Processo para filtrar a tabela abaixo instantaneamente (Estilo Excel):", "")
-                
-                df_tabela_operacional = df_filtrado[[
-                    'Nº processo house', 'Cliente', 'Ref. cliente', 'Nº. Booking', 'Mercadoria', 'Total container 40\'', 'Qtde. volumes', 'Metros cúbicos', 'Situação embarque amigável', 'Diagnóstico de Cobrança', 'País destino'
-                ]].copy()
-                
-                df_tabela_operacional.columns = [
-                    'Nº Processo', 'Cliente', 'PO#', 'Booking', 'Mercadoria', '40HC', 'Pallets', 'M3', 'Status do Embarque', 'Status da Cobrança', 'País de Destino'
-                ]
-                
-                if busca_tabela:
-                    df_tabela_operacional = df_tabela_operacional[
-                        df_tabela_operacional['Cliente'].astype(str).str.lower().str.contains(busca_tabela.lower()) |
-                        df_tabela_operacional['Nº Processo'].astype(str).str.lower().str.contains(busca_tabela.lower()) |
-                        df_tabela_operacional['Mercadoria'].astype(str).str.lower().str.contains(busca_tabela.lower())
-                    ]
-                
-                st.dataframe(
-                    df_tabela_operacional, 
-                    use_container_width=True, 
-                    hide_index=True,
-                    column_config={
-                        "Nº Processo": st.column_config.TextColumn(width="small"),
-                        "Cliente": st.column_config.TextColumn(width="medium"),
-                        "40HC": st.column_config.NumberColumn(format="%d"),
-                        "Pallets": st.column_config.NumberColumn(format="%d"),
-                        "M3": st.column_config.NumberColumn(format="%.2f m³")
-                    }
-                )
-                
-                total_processos_f = len(df_tabela_operacional)
-                total_40hc_f = df_tabela_operacional['40HC'].sum()
-                total_pallets_f = df_tabela_operacional['Pallets'].sum()
-                total_m3_f = df_tabela_operacional['M3'].sum()
-                
-                df_subtotal_excel = pd.DataFrame([{
-                    "Métrica": "🧮 SUBTOTAL DINÂMICO (Excel)",
-                    "Nº Processos": f"{total_processos_f} ativos",
-                    "Total 40HC": f"{int(total_40hc_f)} cont.",
-                    "Total Pallets": f"{int(total_pallets_f)} un.",
-                    "Volume M3": f"{total_m3_f:,.2f} m³"
-                }])
-                
-                st.dataframe(df_subtotal_excel, use_container_width=True, hide_index=True)
+st.markdown("### 📈 Listagem Geral de Embarques")
+busca_tabela = st.text_input("🔍 Digite o nome do Cliente ou Nº de Processo para filtrar a tabela abaixo instantaneamente (Estilo Excel):", "")
 
-        elif st.session_state.perfil == "cliente":
-            cliente_atual = st.session_state.nome_usuario
-            aba_cliente, aba_logout_c = st.tabs([f"📦 Portal do Cliente | {cliente_atual}", "🚪 Sair / Logout"])
+# --- TRATAMENTO E LIMPEZA DOS NOVOS VALORES FINANCEIROS ---
+# Criando uma cópia segura a partir do df_filtrado para manipulação de dados
+df_processado = df_filtrado.copy()
+
+colunas_financeiras_novas = ['Venda USD', 'Frete USD', 'Dut/Despacho USD', 'Metros cúbicos']
+for col in colunas_financeiras_novas:
+    if col in df_processado.columns:
+        # Garante que seja tratado como texto antes de substituir caracteres de milhar/decimal
+        df_processado[col] = df_processado[col].astype(str).str.replace(',', '.', regex=False).str.replace(r'[^\d.]', '', regex=True)
+        df_processado[col] = pd.to_numeric(df_processado[col], errors='coerce').fillna(0.0)
+    else:
+        # Cria a coluna zerada caso ela falte temporariamente na planilha online para evitar quebras
+        df_processado[col] = 0.0
+
+# --- APLICAÇÃO DOS NOVOS CÁLCULOS SOLICITADOS ---
+# Valor SK USD = M3 * 6
+df_processado['Valor SK USD'] = df_processado['Metros cúbicos'] * 6.0
+
+# Valor FOB = Venda USD - Frete USD - Dut/Despacho USD - Valor SK USD
+df_processado['Valor FOB'] = (
+    df_processado['Venda USD'] - 
+    df_processado['Frete USD'] - 
+    df_processado['Dut/Despacho USD'] - 
+    df_processado['Valor SK USD']
+)
+
+# Seleção das colunas incluindo as antigas operacionais e as 5 novas colunas financeiras
+df_tabela_operacional = df_processado[[
+    'Nº processo house', 'Cliente', 'Ref. cliente', 'Nº. Booking', 'Mercadoria', 
+    'Total container 40\'', 'Qtde. volumes', 'Metros cúbicos', 'Situação embarque amigável', 
+    'Diagnóstico de Cobrança', 'País destino',
+    'Venda USD', 'Frete USD', 'Dut/Despacho USD', 'Valor SK USD', 'Valor FOB'
+]].copy()
+
+# Renomeando as colunas para o cabeçalho de exibição da tabela
+df_tabela_operacional.columns = [
+    'Nº Processo', 'Cliente', 'PO#', 'Booking', 'Mercadoria', 
+    '40HC', 'Pallets', 'M3', 'Status do Embarque', 
+    'Status da Cobrança', 'País de Destino',
+    'Venda USD', 'Frete USD', 'Dut/Despacho USD', 'Valor SK USD', 'Valor FOB'
+]
+
+# Filtro dinâmico da tabela (barra de pesquisa)
+if busca_tabela:
+    df_tabela_operacional = df_tabela_operacional[
+        df_tabela_operacional['Cliente'].astype(str).str.lower().str.contains(busca_tabela.lower()) |
+        df_tabela_operacional['Nº Processo'].astype(str).str.lower().str.contains(busca_tabela.lower()) |
+        df_tabela_operacional['Mercadoria'].astype(str).str.lower().str.contains(busca_tabela.lower())
+    ]
+
+# Renderização da Tabela com as configurações de colunas e formatos numéricos ajustados
+st.dataframe(
+    df_tabela_operacional, 
+    use_container_width=True, 
+    hide_index=True,
+    column_config={
+        "Nº Processo": st.column_config.TextColumn(width="small"),
+        "Cliente": st.column_config.TextColumn(width="medium"),
+        "40HC": st.column_config.NumberColumn(format="%d"),
+        "Pallets": st.column_config.NumberColumn(format="%d"),
+        "M3": st.column_config.NumberColumn(format="%.2f m³"),
+        # Formatação das novas colunas de valores em USD
+        "Venda USD": st.column_config.NumberColumn(format="%.2f"),
+        "Frete USD": st.column_config.NumberColumn(format="%.2f"),
+        "Dut/Despacho USD": st.column_config.NumberColumn(format="%.2f"),
+        "Valor SK USD": st.column_config.NumberColumn(format="%.2f"),
+        "Valor FOB": st.column_config.NumberColumn(format="%.2f")
+    }
+)
+
+# Mapeia e gera o subtotal dinâmico com base no que está visível na tela
+total_processos_f = len(df_tabela_operacional)
+total_40hc_f = df_tabela_operacional['40HC'].sum()
+total_pallets_f = df_tabela_operacional['Pallets'].sum()
+total_m3_f = df_tabela_operacional['M3'].sum()
+
+df_subtotal_excel = pd.DataFrame([{
+    "Métrica": "🧮 SUBTOTAL DINÂMICO (Excel)",
+    "Nº Processos": f"{total_processos_f} ativos",
+    "Total 40HC": f"{int(total_40hc_f)} cont.",
+    "Total Pallets": f"{int(total_pallets_f)} un.",
+    "Volume M3": f"{total_m3_f:,.2f} m³"
+}])
+
+st.dataframe(df_subtotal_excel, use_container_width=True, hide_index=True)
+
+elif st.session_state.perfil == "cliente":
+    cliente_atual = st.session_state.nome_usuario
+    aba_cliente, aba_logout_c = st.tabs([f"📦 Portal do Cliente | {cliente_atual}", "🚪 Sair / Logout"])
+    
+    with aba_logout_c:
+        if st.button("Confirmar Saída"):
+            st.session_state.logado = False
+            st.rerun()
             
-            with aba_logout_c:
-                if st.button("Confirmar Saída"):
-                    st.session_state.logado = False
-                    st.rerun()
-                    
-            with aba_cliente:
-                df_cliente = df[df['Cliente'] == cliente_atual]
-                if not df_cliente.empty:
-                    st.dataframe(df_cliente[['Nº processo house', 'Situação embarque amigável', 'Qtde. volumes', 'Metros cúbicos']], use_container_width=True, hide_index=True)
+    with aba_cliente:
+        df_cliente = df[df['Cliente'] == cliente_atual]
+        if not df_cliente.empty:
+            st.dataframe(df_cliente[['Nº processo house', 'Situação embarque amigável', 'Qtde. volumes', 'Metros cúbicos']], use_container_width=True, hide_index=True)
