@@ -77,14 +77,12 @@ def calcular_status_cobranca(linha):
     cobranca_excel = str(linha.get('Cobrança enviada', '')).strip().upper()
     booking_excel = str(linha.get('Nº. Booking', '')).strip()
     
-    # Buscamos a situação original para não ter erro de leitura
     situacao_original = str(linha.get('Situação embarque', '')).strip().lower()
     status_traduzido = traduzir_status(linha.get('Situação embarque', ''))
     
     has_booking = pd.notna(linha.get('Nº. Booking')) and booking_excel != "" and booking_excel != "-" and booking_excel != "Não Informado"
     is_aguardando_prontidao = "confirmar produção" in status_traduzido.lower()
 
-    # 🌟 NOVA REGRA: Se o status for "Aguardando Booking", capturamos aqui
     is_aguardando_booking = "aguardando booking" in situacao_original or "booking foi solicitado" in status_traduzido.lower()
 
     if "RECEBIDO" in cobranca_excel:
@@ -92,7 +90,6 @@ def calcular_status_cobranca(linha):
     elif "SIM" in cobranca_excel:
         return "Cobrança Enviada"
     else:
-        # AJUSTADO: Se tiver número de booking OU se o status for "Aguardando Booking", vai para Draft!
         if (has_booking or is_aguardando_booking) and not is_aguardando_prontidao:
             return "Aguardando Draft"
         else:
@@ -105,7 +102,6 @@ def calcular_financeiro_estrito(linha):
     
     saldo_calculado = max(0.0, venda - recebido)
     
-    # Retorna: [Venda, Já Recebido, Contas a Receber, Aguarda Draft, Previsão Futura]
     if status_cobranca == "Tudo Recebido":
         realmente_recebido = max(venda, recebido)
         return pd.Series([venda, realmente_recebido, 0.0, 0.0, 0.0])
@@ -159,12 +155,8 @@ def calcular_vencimento_e_alertas(linha):
         return pd.Series([pd.NaT, 0, "", "Vencimento Indefinido (Sem ETA)"])
         
     try:
-        # ----------------------------------------------------------------------
-        # TRAVA DE SEGURANÇA: dayfirst=True FORÇA O FORMATO BRASILEIRO (DD/MM/AAAA)
-        # ----------------------------------------------------------------------
         dt_chegada = pd.to_datetime(data_chegada, dayfirst=True, errors='coerce')
         
-        # Se a data falhar por algum motivo e virar NaT, evita cálculo errado
         if pd.isna(dt_chegada):
             return pd.Series([pd.NaT, 0, "", "Erro no formato da data"])
             
@@ -205,7 +197,6 @@ def carregar_dados():
         df['Total container 40\''] = df['Total container 40\''].apply(limpar_e_converter_numero).astype(int)
         df['Metros cúbicos'] = df['Metros cúbicos'].apply(limpar_e_converter_numero)
         
-        # Mapeamento estrito das 5 colunas financeiras incluindo o Draft estruturado
         df[['Venda USD', 'Venda Recebida USD', 'Saldo a Receber Real USD', 'Aguarda Draft USD', 'Previsão Cobrança Futura USD']] = df.apply(calcular_financeiro_estrito, axis=1)
         df[['Falta Pagar Frete USD', 'Falta Pagar DUT USD']] = df.apply(auditoria_custos_pagar, axis=1)
         df[['Data Vencimento Custo', 'Semana Vencimento', 'Prazo Pagamento Texto', 'Alerta Custo']] = df.apply(calcular_vencimento_e_alertas, axis=1)
@@ -383,7 +374,6 @@ else:
                 with col_tabela2:
                     st.markdown("#### 💵 Posição Financeira por Cliente")
                     
-                    # 1. REMOVIDO: Tiramos o 'Total_Recebido' de dentro do agg()
                     df_resumo_financeiro = df_filtrado.groupby('Cliente').agg(
                         Qtd_Processos=('Nº processo house', 'count'),
                         Saldo_A_Receber_Real=('Saldo a Receber Real USD', 'sum'),
@@ -391,11 +381,9 @@ else:
                         Previsao_Futura=('Previsão Cobrança Futura USD', 'sum')
                     ).reset_index()
                     
-                    # 2. AJUSTADO: Removido o nome 'Recebido' da lista para bater com o novo tamanho da tabela
                     df_resumo_financeiro.columns = ['Cliente', 'Qtd Proc', 'À Receber(Já Cobrado)', 'Aguarda Draft', 'Ag. Prev. Fábrica']
                     
                     df_resumo_financeiro['Qtd Proc'] = df_resumo_financeiro['Qtd Proc'].astype(int)
-                    # REMOVIDO: A linha que formatava a coluna 'Recebido' com o cifrão $
                     df_resumo_financeiro['À Receber(Já Cobrado)'] = df_resumo_financeiro['À Receber(Já Cobrado)' ] .map('$ {:,.2f}'.format)
                     df_resumo_financeiro['Aguarda Draft'] = df_resumo_financeiro['Aguarda Draft'].map('$ {:,.2f}'.format)
                     df_resumo_financeiro['Ag. Prev. Fábrica'] = df_resumo_financeiro['Ag. Prev. Fábrica'].map('$ {:,.2f}'.format)
@@ -404,12 +392,10 @@ else:
                     
                     st.markdown("<br><h5 style='margin-bottom:12px; color: #333;'>📐 Indicadores Financeiros (Subtotal do Filtro)</h5>", unsafe_allow_html=True)
                     
-                    # Mantemos o cálculo aqui caso precise usar em outro lugar, mas removemos do bloco visual
                     val_a_receber = df_filtrado['Saldo a Receber Real USD'].sum()
                     val_draft = df_filtrado['Aguarda Draft USD'].sum()
                     val_futuro = df_filtrado['Previsão Cobrança Futura USD'].sum()
                     
-                    # 3. AJUSTADO: O bloco HTML agora só tem as 3 colunas de valores a entrar
                     html_indicadores = f"""
                     <div style="display: flex; gap: 15px; justify-content: space-between; flex-wrap: wrap; background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #0066cc;">
                         <div style="flex: 1; min-width: 130px; display: flex; flex-direction: column; justify-content: center;">
@@ -522,16 +508,44 @@ else:
                 
                 st.markdown("---")
                 
-                # --- LISTAGEM GERAL DE EMBARQUES ---
+                # --- LISTAGEM GERAL DE EMBARQUES COORDENADA ---
                 st.markdown("### 📈 Listagem Geral de Embarques")
                 busca_tabela = st.text_input("🔍 Digite o nome do Cliente ou Nº de Processo para filtrar a tabela abaixo instantaneamente (Estilo Excel):", "")
                 
-                df_tabela_operacional = df_filtrado[[
-                    'Nº processo house', 'Cliente', 'Ref. cliente', 'Nº. Booking', 'Mercadoria', 'Total container 40\'', 'Qtde. volumes', 'Metros cúbicos', 'Situação embarque amigável', 'Diagnóstico de Cobrança', 'País destino'
+                # Criação segura do subset estendido de dados matemáticos financeiros
+                df_operacional_proc = df_filtrado.copy()
+                
+                # Garantia de tratamento limpo e numérico para as colunas de entrada da planilha
+                for c_financeira in ['Venda USD', 'Frete USD', 'Dut/Despacho USD', 'Metros cúbicos']:
+                    if c_financeira in df_operacional_proc.columns:
+                        df_operacional_proc[c_financeira] = df_operacional_proc[c_financeira].astype(str).str.replace(',', '.', regex=False).str.replace(r'[^\d.]', '', regex=True)
+                        df_operacional_proc[c_financeira] = pd.to_numeric(df_operacional_proc[c_financeira], errors='coerce').fillna(0.0)
+                    else:
+                        df_operacional_proc[c_financeira] = 0.0
+
+                # Execução dinâmica das fórmulas estruturadas requisitadas
+                df_operacional_proc['Valor SK USD'] = df_operacional_proc['Metros cúbicos'] * 6.0
+                df_operacional_proc['Valor FOB'] = (
+                    df_operacional_proc['Venda USD'] - 
+                    df_operacional_proc['Frete USD'] - 
+                    df_operacional_proc['Dut/Despacho USD'] - 
+                    df_operacional_proc['Valor SK USD']
+                )
+
+                # Mapeamento do Grid final contendo as 11 colunas originais + 5 novas colunas de valores calculados
+                df_tabela_operacional = df_operacional_proc[[
+                    'Nº processo house', 'Cliente', 'Ref. cliente', 'Nº. Booking', 'Mercadoria', 
+                    'Total container 40\'', 'Qtde. volumes', 'Metros cúbicos', 'Situação embarque amigável', 
+                    'Diagnóstico de Cobrança', 'País destino',
+                    'Venda USD', 'Frete USD', 'Dut/Despacho USD', 'Valor SK USD', 'Valor FOB'
                 ]].copy()
                 
+                # Definição dos rótulos de cabeçalhos visuais
                 df_tabela_operacional.columns = [
-                    'Nº Processo', 'Cliente', 'PO#', 'Booking', 'Mercadoria', '40HC', 'Pallets', 'M3', 'Status do Embarque', 'Status da Cobrança', 'País de Destino'
+                    'Nº Processo', 'Cliente', 'PO#', 'Booking', 'Mercadoria', 
+                    '40HC', 'Pallets', 'M3', 'Status do Embarque', 
+                    'Status da Cobrança', 'País de Destino',
+                    'Venda USD', 'Frete USD', 'Dut/Despacho USD', 'Valor SK USD', 'Valor FOB'
                 ]
                 
                 if busca_tabela:
@@ -541,6 +555,7 @@ else:
                         df_tabela_operacional['Mercadoria'].astype(str).str.lower().str.contains(busca_tabela.lower())
                     ]
                 
+                # Renderização da tabela operacional rica com as configurações estruturadas e formatação em dólares
                 st.dataframe(
                     df_tabela_operacional, 
                     use_container_width=True, 
@@ -550,7 +565,12 @@ else:
                         "Cliente": st.column_config.TextColumn(width="medium"),
                         "40HC": st.column_config.NumberColumn(format="%d"),
                         "Pallets": st.column_config.NumberColumn(format="%d"),
-                        "M3": st.column_config.NumberColumn(format="%.2f m³")
+                        "M3": st.column_config.NumberColumn(format="%.2f m³"),
+                        "Venda USD": st.column_config.NumberColumn(format="$ %.2f"),
+                        "Frete USD": st.column_config.NumberColumn(format="$ %.2f"),
+                        "Dut/Despacho USD": st.column_config.NumberColumn(format="$ %.2f"),
+                        "Valor SK USD": st.column_config.NumberColumn(format="$ %.2f"),
+                        "Valor FOB": st.column_config.NumberColumn(format="$ %.2f")
                     }
                 )
                 
