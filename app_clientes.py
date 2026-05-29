@@ -9,8 +9,8 @@ st.set_page_config(page_title="Customer Tracking Portal", layout="wide")
 # 1. CONTROLE DE ACESSO (Estrutura nativa com suporte a salvar senha)
 # =========================================================================
 USUARIOS_PROVEDORES = {
-    "mgasset": {"senha": "mg2026", "nome_planilha": "M&G ASSET MANAGEMENT"},
-    "viking": {"senha": "vk2026", "nome_planilha": "VIKING"},
+    "mgasset": {"senha": "mg#1452@2026", "nome_planilha": "M&G ASSET MANAGEMENT"},
+    "viking": {"senha": "vk@725#2026", "nome_planilha": "VIKING"},
     "triplay": {"senha": "tp2026", "nome_planilha": "TRIPLAY Y TECAMAC"},
     "plaut": {"senha": "pt2026", "nome_planilha": "PLAUT"},
     "madesur": {"senha": "ms2026", "nome_planilha": "GL MADESUR"},
