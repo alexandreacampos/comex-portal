@@ -40,6 +40,10 @@ if not st.session_state['logado']:
 
 cliente_logado = st.session_state['cliente_nome']
 
+# Inicializa o inicializador de filtros se não existir (essencial para o reset visual completo)
+if 'refresh_version' not in st.session_state:
+    st.session_state['refresh_version'] = 0
+
 # =========================================================================
 # 2. DICIONÁRIO DE STATUS
 # =========================================================================
@@ -225,33 +229,35 @@ with fm3:
 st.markdown("---")
 
 # =========================================================================
-# BOTÃO DE ATUALIZAÇÃO DE DADOS (Limpa planilha e reinicia filtros)
+# BOTÃO DE ATUALIZAÇÃO DE DADOS (Limpa planilha e altera o ID dos filtros)
 # =========================================================================
 col_btn_refresh, _ = st.columns([0.2, 0.8])
 with col_btn_refresh:
     if st.button("🔄 Refresh Data", use_container_width=True):
         st.cache_data.clear() # Limpa o cache da planilha
         
-        # --- CORREÇÃO AQUI: Remove os filtros do session_state para forçá-los a resetar ---
-        for chave_filtro in ['f_status', 'f_po', 'f_destino', 'f_billing']:
-            if chave_filtro in st.session_state:
-                del st.session_state[chave_filtro]
+        # Altera o sufixo numérico. Isso força o Streamlit a destruir os selectboxes visuais antigos e recriá-los zerados
+        st.session_state['refresh_version'] += 1
                 
         st.rerun() # Reinicia a página limpa mantendo o login
 
 # =========================================================================
-# 6. FILTROS (Com atribuição de chaves fixas 'key' para permitir o reset)
+# 6. FILTROS (Com chaves dinâmicas baseadas na versão do refresh para limpeza visual)
 # =========================================================================
 st.markdown("### 🔍 Filter Shipments")
+
+# Criamos sufixos dinâmicos baseados no clique do refresh
+v = st.session_state['refresh_version']
+
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    filtro_status = st.selectbox("Shipment Status", ["All Statuses"] + sorted(list(df_bruto['Shipment Status'].dropna().unique())), key="f_status")
+    filtro_status = st.selectbox("Shipment Status", ["All Statuses"] + sorted(list(df_bruto['Shipment Status'].dropna().unique())), key=f"f_status_{v}")
 with c2:
-    filtro_po = st.selectbox("Customer PO", ["All POs"] + sorted(list(df_bruto['Ref. cliente'].dropna().astype(str).unique())), key="f_po")
+    filtro_po = st.selectbox("Customer PO", ["All POs"] + sorted(list(df_bruto['Ref. cliente'].dropna().astype(str).unique())), key=f"f_po_{v}")
 with c3:
-    filtro_destino = st.selectbox("Destination Port (POD)", ["All Ports"] + sorted(list(df_bruto['POD_Tratado'].dropna().unique())), key="f_destino")
+    filtro_destino = st.selectbox("Destination Port (POD)", ["All Ports"] + sorted(list(df_bruto['POD_Tratado'].dropna().unique())), key=f"f_destino_{v}")
 with c4:
-    filtro_billing = st.selectbox("Billing Status", ["All Billing", "Fully Paid", "Invoice Sent", "Future Payments"], key="f_billing")
+    filtro_billing = st.selectbox("Billing Status", ["All Billing", "Fully Paid", "Invoice Sent", "Future Payments"], key=f"f_billing_{v}")
 
 df_filtrado = df_bruto.copy()
 if filtro_status != "All Statuses": df_filtrado = df_filtrado[df_filtrado['Shipment Status'] == filtro_status]
@@ -270,9 +276,9 @@ st.caption("💡 Select a row to view containers.")
 df_exibicao = df_filtrado[['Shipment Status', 'Nº processo house', 'Ref. cliente', 'Mercadoria', "Total container 40'", 'Qtde. volumes', 'Metros cúbicos', 'ETD_Tratado', 'ETA_Tratado', 'POD_Tratado', 'Final_Tratado', 'Billing Status Translated', 'Saldo a Receber Real USD', 'Previsão Cobrança Futura USD']].copy()
 df_exibicao.columns = ['SHIPMENT STATUS', 'PROCESS', 'PO#', 'CARGO DESCRIPTION', "40HC", 'PALLETS', 'CBM (m³)', 'ETD', 'ETA', 'POD', 'FINAL DESTINATION', 'BILLING STATUS', 'BALANCE', 'FUTURE FORECAST']
 
-# --- APLICAÇÃO DO SEU FORMATO DE DATA INTERNACIONAL (Ex: Jun/02/2026) ---
+# --- APLICAÇÃO DO FORMATO DE DATA INTERNACIONAL (Ex: Jun/02/2026) ---
 df_exibicao['ETD'] = formatar_data_ingles(df_filtrado['ETD_Tratado'])
-df_exibicao['ETA'] = formatar_data_ingles(df_filtrado['ETA_Tratado'])
+df_exibicao['ETA'] = formatar_data_ingles(df_filtrado['ETA/ATA'])
 
 # Renderização da Tabela Executiva
 selecao_tabela = st.dataframe(
