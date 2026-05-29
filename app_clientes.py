@@ -225,27 +225,33 @@ with fm3:
 st.markdown("---")
 
 # =========================================================================
-# BOTÃO DE ATUALIZAÇÃO DE DADOS (Inserido acima da seção de Filtros)
+# BOTÃO DE ATUALIZAÇÃO DE DADOS (Limpa planilha e reinicia filtros)
 # =========================================================================
 col_btn_refresh, _ = st.columns([0.2, 0.8])
 with col_btn_refresh:
     if st.button("🔄 Refresh Data", use_container_width=True):
-        st.cache_data.clear() # Limpa o cache da leitura da planilha
-        st.rerun()           # Reinicia a página mantendo a sessão de login salva
+        st.cache_data.clear() # Limpa o cache da planilha
+        
+        # --- CORREÇÃO AQUI: Remove os filtros do session_state para forçá-los a resetar ---
+        for chave_filtro in ['f_status', 'f_po', 'f_destino', 'f_billing']:
+            if chave_filtro in st.session_state:
+                del st.session_state[chave_filtro]
+                
+        st.rerun() # Reinicia a página limpa mantendo o login
 
 # =========================================================================
-# 6. FILTROS
+# 6. FILTROS (Com atribuição de chaves fixas 'key' para permitir o reset)
 # =========================================================================
 st.markdown("### 🔍 Filter Shipments")
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    filtro_status = st.selectbox("Shipment Status", ["All Statuses"] + sorted(list(df_bruto['Shipment Status'].dropna().unique())))
+    filtro_status = st.selectbox("Shipment Status", ["All Statuses"] + sorted(list(df_bruto['Shipment Status'].dropna().unique())), key="f_status")
 with c2:
-    filtro_po = st.selectbox("Customer PO", ["All POs"] + sorted(list(df_bruto['Ref. cliente'].dropna().astype(str).unique())))
+    filtro_po = st.selectbox("Customer PO", ["All POs"] + sorted(list(df_bruto['Ref. cliente'].dropna().astype(str).unique())), key="f_po")
 with c3:
-    filtro_destino = st.selectbox("Destination Port (POD)", ["All Ports"] + sorted(list(df_bruto['POD_Tratado'].dropna().unique())))
+    filtro_destino = st.selectbox("Destination Port (POD)", ["All Ports"] + sorted(list(df_bruto['POD_Tratado'].dropna().unique())), key="f_destino")
 with c4:
-    filtro_billing = st.selectbox("Billing Status", ["All Billing", "Fully Paid", "Invoice Sent", "Future Payments"])
+    filtro_billing = st.selectbox("Billing Status", ["All Billing", "Fully Paid", "Invoice Sent", "Future Payments"], key="f_billing")
 
 df_filtrado = df_bruto.copy()
 if filtro_status != "All Statuses": df_filtrado = df_filtrado[df_filtrado['Shipment Status'] == filtro_status]
@@ -264,7 +270,7 @@ st.caption("💡 Select a row to view containers.")
 df_exibicao = df_filtrado[['Shipment Status', 'Nº processo house', 'Ref. cliente', 'Mercadoria', "Total container 40'", 'Qtde. volumes', 'Metros cúbicos', 'ETD_Tratado', 'ETA_Tratado', 'POD_Tratado', 'Final_Tratado', 'Billing Status Translated', 'Saldo a Receber Real USD', 'Previsão Cobrança Futura USD']].copy()
 df_exibicao.columns = ['SHIPMENT STATUS', 'PROCESS', 'PO#', 'CARGO DESCRIPTION', "40HC", 'PALLETS', 'CBM (m³)', 'ETD', 'ETA', 'POD', 'FINAL DESTINATION', 'BILLING STATUS', 'BALANCE', 'FUTURE FORECAST']
 
-# --- APLICAÇÃO DO SEU NOVO FORMATO DE DATA INTERNACIONAL (Ex: Jun/02/2026) ---
+# --- APLICAÇÃO DO SEU FORMATO DE DATA INTERNACIONAL (Ex: Jun/02/2026) ---
 df_exibicao['ETD'] = formatar_data_ingles(df_filtrado['ETD_Tratado'])
 df_exibicao['ETA'] = formatar_data_ingles(df_filtrado['ETA_Tratado'])
 
@@ -277,13 +283,12 @@ selecao_tabela = st.dataframe(
         "CBM (m³)": st.column_config.NumberColumn(format="%.2f m³"),
         "BALANCE": st.column_config.NumberColumn(format="%.2f"),
         "FUTURE FORECAST": st.column_config.NumberColumn(format="%.2f"),
-        # Configurado como TextColumn pois o Pandas já gerou o texto formatado perfeito para os clientes
         "ETD": st.column_config.TextColumn(),
         "ETA": st.column_config.TextColumn()
     }
 )
 
-# --- NOVO DESIGN: BLOCO DE TOTAIS EM UMA ÚNICA LINHA ---
+# --- BLOCO DE TOTAIS EM UMA ÚNICA LINHA ---
 tot_40hc = int(df_exibicao["40HC"].sum())
 tot_pallets = int(df_exibicao["PALLETS"].sum())
 tot_cbm = float(df_exibicao["CBM (m³)"].sum())
@@ -306,7 +311,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-st.markdown("---") # Linha divisória antes do detalhamento de containers por clique
+st.markdown("---") 
 
 # Detalhamento de containers ao clicar na linha da tabela
 linhas_sel = selecao_tabela.get("selection", {}).get("rows", [])
