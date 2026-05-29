@@ -24,7 +24,6 @@ if 'logado' not in st.session_state:
 if not st.session_state['logado']:
     st.subheader("🔑 Customer Portal - Login")
     
-    # O bloco st.form permite que o navegador (Chrome, Edge, etc.) reconheça os campos e ofereça a opção de salvar o Login/Senha
     with st.form("login_form", clear_on_submit=False):
         usuario = st.text_input("Username", autocomplete="username").strip().lower()
         senha = st.text_input("Password", type="password", autocomplete="current-password")
@@ -64,6 +63,18 @@ DICIONARIO_COBRANCA_INGLES = {
     "tudo recebido": "Fully Paid",
     "fully paid": "Fully Paid"
 }
+
+# Mapeamento manual para garantir meses em inglês independente do servidor do Streamlit
+MESES_INGLES = {
+    1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
+    7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"
+}
+
+def formatar_data_ingles(serie_datetime):
+    """Converte uma coluna datetime para o formato 'Jun/02/2026' de forma segura"""
+    return serie_datetime.apply(
+        lambda dt: f"{MESES_INGLES[dt.month]}/{dt.strftime('%d/%Y')}" if pd.notnull(dt) else ""
+    )
 
 # =========================================================================
 # 3. CARREGAMENTO E TRATAMENTO DOS DADOS
@@ -253,9 +264,9 @@ st.caption("💡 Select a row to view containers.")
 df_exibicao = df_filtrado[['Shipment Status', 'Nº processo house', 'Ref. cliente', 'Mercadoria', "Total container 40'", 'Qtde. volumes', 'Metros cúbicos', 'ETD_Tratado', 'ETA_Tratado', 'POD_Tratado', 'Final_Tratado', 'Billing Status Translated', 'Saldo a Receber Real USD', 'Previsão Cobrança Futura USD']].copy()
 df_exibicao.columns = ['SHIPMENT STATUS', 'PROCESS', 'PO#', 'CARGO DESCRIPTION', "40HC", 'PALLETS', 'CBM (m³)', 'ETD', 'ETA', 'POD', 'FINAL DESTINATION', 'BILLING STATUS', 'BALANCE', 'FUTURE FORECAST']
 
-# Tratamento seguro extraindo direto das colunas convertidas no início (Sem o bug de 1970)
-df_exibicao['ETD'] = df_filtrado['ETD_Tratado'].dt.date
-df_exibicao['ETA'] = df_filtrado['ETA_Tratado'].dt.date
+# --- APLICAÇÃO DO SEU NOVO FORMATO DE DATA INTERNACIONAL (Ex: Jun/02/2026) ---
+df_exibicao['ETD'] = formatar_data_ingles(df_filtrado['ETD_Tratado'])
+df_exibicao['ETA'] = formatar_data_ingles(df_filtrado['ETA_Tratado'])
 
 # Renderização da Tabela Executiva
 selecao_tabela = st.dataframe(
@@ -266,8 +277,9 @@ selecao_tabela = st.dataframe(
         "CBM (m³)": st.column_config.NumberColumn(format="%.2f m³"),
         "BALANCE": st.column_config.NumberColumn(format="%.2f"),
         "FUTURE FORECAST": st.column_config.NumberColumn(format="%.2f"),
-        "ETD": st.column_config.DateColumn(format="DD/MM/YYYY"),
-        "ETA": st.column_config.DateColumn(format="DD/MM/YYYY")
+        # Configurado como TextColumn pois o Pandas já gerou o texto formatado perfeito para os clientes
+        "ETD": st.column_config.TextColumn(),
+        "ETA": st.column_config.TextColumn()
     }
 )
 
