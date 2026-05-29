@@ -6,7 +6,7 @@ from datetime import datetime
 st.set_page_config(page_title="Customer Tracking Portal", layout="wide")
 
 # =========================================================================
-# 1. CONTROLE DE ACESSO
+# 1. CONTROLE DE ACESSO (Estrutura nativa com suporte a salvar senha)
 # =========================================================================
 USUARIOS_PROVEDORES = {
     "mgasset": {"senha": "mg2026", "nome_planilha": "M&G ASSET MANAGEMENT"},
@@ -23,15 +23,20 @@ if 'logado' not in st.session_state:
 
 if not st.session_state['logado']:
     st.subheader("🔑 Customer Portal - Login")
-    usuario = st.text_input("Username").strip().lower()
-    senha = st.text_input("Password", type="password")
-    if st.button("Login"):
-        if usuario in USUARIOS_PROVEDORES and USUARIOS_PROVEDORES[usuario]["senha"] == senha:
-            st.session_state['logado'] = True
-            st.session_state['cliente_nome'] = USUARIOS_PROVEDORES[usuario]["nome_planilha"]
-            st.rerun()
-        else:
-            st.error("Invalid Username or Password.")
+    
+    # O bloco st.form permite que o navegador (Chrome, Edge, etc.) reconheça os campos e ofereça a opção de salvar o Login/Senha
+    with st.form("login_form", clear_on_submit=False):
+        usuario = st.text_input("Username", autocomplete="username").strip().lower()
+        senha = st.text_input("Password", type="password", autocomplete="current-password")
+        botao_login = st.form_submit_button("Login")
+        
+        if botao_login:
+            if usuario in USUARIOS_PROVEDORES and USUARIOS_PROVEDORES[usuario]["senha"] == senha:
+                st.session_state['logado'] = True
+                st.session_state['cliente_nome'] = USUARIOS_PROVEDORES[usuario]["nome_planilha"]
+                st.rerun()
+            else:
+                st.error("Invalid Username or Password.")
     st.stop()
 
 cliente_logado = st.session_state['cliente_nome']
@@ -81,7 +86,7 @@ if df_bruto.empty:
         st.rerun()
     st.stop()
 
-# --- CORREÇÃO AQUI: Convertendo explicitamente ambas as colunas para Datetime real ---
+# --- Convertendo explicitamente ambas as colunas para Datetime real ---
 df_bruto['ETD_Tratado'] = pd.to_datetime(df_bruto['ETD/ATD'], dayfirst=True, errors='coerce')
 df_bruto['ETA_Tratado'] = pd.to_datetime(df_bruto['ETA/ATA'], dayfirst=True, errors='coerce')
 
@@ -209,6 +214,15 @@ with fm3:
 st.markdown("---")
 
 # =========================================================================
+# BOTÃO DE ATUALIZAÇÃO DE DADOS (Inserido acima da seção de Filtros)
+# =========================================================================
+col_btn_refresh, _ = st.columns([0.2, 0.8])
+with col_btn_refresh:
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        st.cache_data.clear() # Limpa o cache da leitura da planilha
+        st.rerun()           # Reinicia a página mantendo a sessão de login salva
+
+# =========================================================================
 # 6. FILTROS
 # =========================================================================
 st.markdown("### 🔍 Filter Shipments")
@@ -239,9 +253,9 @@ st.caption("💡 Select a row to view containers.")
 df_exibicao = df_filtrado[['Shipment Status', 'Nº processo house', 'Ref. cliente', 'Mercadoria', "Total container 40'", 'Qtde. volumes', 'Metros cúbicos', 'ETD_Tratado', 'ETA_Tratado', 'POD_Tratado', 'Final_Tratado', 'Billing Status Translated', 'Saldo a Receber Real USD', 'Previsão Cobrança Futura USD']].copy()
 df_exibicao.columns = ['SHIPMENT STATUS', 'PROCESS', 'PO#', 'CARGO DESCRIPTION', "40HC", 'PALLETS', 'CBM (m³)', 'ETD', 'ETA', 'POD', 'FINAL DESTINATION', 'BILLING STATUS', 'BALANCE', 'FUTURE FORECAST']
 
-# Tratamento seguro para exibição de datas (converte para data limpa sem quebrar com nulos)
-df_exibicao['ETD'] = pd.to_datetime(df_exibicao['ETD'], errors='coerce').dt.date
-df_exibicao['ETA'] = pd.to_datetime(df_exibicao['ETA'], errors='coerce').dt.date
+# Tratamento seguro extraindo direto das colunas convertidas no início (Sem o bug de 1970)
+df_exibicao['ETD'] = df_filtrado['ETD_Tratado'].dt.date
+df_exibicao['ETA'] = df_filtrado['ETA_Tratado'].dt.date
 
 # Renderização da Tabela Executiva
 selecao_tabela = st.dataframe(
@@ -250,7 +264,6 @@ selecao_tabela = st.dataframe(
         "40HC": st.column_config.NumberColumn(format="%d"),
         "PALLETS": st.column_config.NumberColumn(format="%d"),
         "CBM (m³)": st.column_config.NumberColumn(format="%.2f m³"),
-        # CORREÇÃO: Formato numérico corrigido (Streamlit insere a moeda separada se necessário ou exibimos padrão americano)
         "BALANCE": st.column_config.NumberColumn(format="%.2f"),
         "FUTURE FORECAST": st.column_config.NumberColumn(format="%.2f"),
         "ETD": st.column_config.DateColumn(format="DD/MM/YYYY"),
