@@ -25,7 +25,8 @@ if not st.session_state['logado']:
     st.subheader("🔑 Customer Portal - Login")
     
     with st.form("login_form", clear_on_submit=False):
-        usuario = st.text_input("Username", autocomplete="username").strip().lower()
+        # Bloqueia qualquer sugestão de histórico do navegador usando "new-password"
+        usuario = st.text_input("Username", autocomplete="new-password").strip().lower()
         senha = st.text_input("Password", type="password", autocomplete="current-password")
         botao_login = st.form_submit_button("Login")
         
@@ -67,18 +68,6 @@ DICIONARIO_COBRANCA_INGLES = {
     "tudo recebido": "Fully Paid",
     "fully paid": "Fully Paid"
 }
-
-# Mapeamento manual para garantir meses em inglês independente do servidor do Streamlit
-MESES_INGLES = {
-    1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
-    7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"
-}
-
-def formatar_data_ingles(serie_datetime):
-    """Converte uma coluna datetime para o formato 'Jun/02/2026' de forma segura"""
-    return serie_datetime.apply(
-        lambda dt: f"{MESES_INGLES[dt.month]}/{dt.strftime('%d/%Y')}" if pd.notnull(dt) else ""
-    )
 
 # =========================================================================
 # 3. CARREGAMENTO E TRATAMENTO DOS DADOS
@@ -272,15 +261,11 @@ df_filtrado = df_filtrado.reset_index(drop=True)
 st.markdown("### Executive Summary Table")
 st.caption("💡 Select a row to view containers.")
 
-# Criando a cópia exata para exibição com as colunas renomeadas
+# Criando a cópia exata para exibição mapeando as colunas reais de datetime para ETD e ETA
 df_exibicao = df_filtrado[['Shipment Status', 'Nº processo house', 'Ref. cliente', 'Mercadoria', "Total container 40'", 'Qtde. volumes', 'Metros cúbicos', 'ETD_Tratado', 'ETA_Tratado', 'POD_Tratado', 'Final_Tratado', 'Billing Status Translated', 'Saldo a Receber Real USD', 'Previsão Cobrança Futura USD']].copy()
 df_exibicao.columns = ['SHIPMENT STATUS', 'PROCESS', 'PO#', 'CARGO DESCRIPTION', "40HC", 'PALLETS', 'CBM (m³)', 'ETD', 'ETA', 'POD', 'FINAL DESTINATION', 'BILLING STATUS', 'BALANCE', 'FUTURE FORECAST']
 
-# --- CORREÇÃO AQUI: Passando as colunas tratadas (ETD_Tratado e ETA_Tratado) para evitar o AttributeError ---
-df_exibicao['ETD'] = formatar_data_ingles(df_filtrado['ETD_Tratado'])
-df_exibicao['ETA'] = formatar_data_ingles(df_filtrado['ETA_Tratado'])
-
-# Renderização da Tabela Executiva
+# Renderização da Tabela Executiva utilizando a inteligência nativa DateColumn do Streamlit
 selecao_tabela = st.dataframe(
     df_exibicao, use_container_width=True, hide_index=True, on_select="rerun", selection_mode="single-row",
     column_config={
@@ -289,8 +274,9 @@ selecao_tabela = st.dataframe(
         "CBM (m³)": st.column_config.NumberColumn(format="%.2f m³"),
         "BALANCE": st.column_config.NumberColumn(format="%.2f"),
         "FUTURE FORECAST": st.column_config.NumberColumn(format="%.2f"),
-        "ETD": st.column_config.TextColumn(),
-        "ETA": st.column_config.TextColumn()
+        # CORREÇÃO DA ORDENAÇÃO CRONOLÓGICA: Exibe as datas de forma estruturada internacionalmente sem virar string solta
+        "ETD": st.column_config.DateColumn(format="MMM/DD/YYYY"),
+        "ETA": st.column_config.DateColumn(format="MMM/DD/YYYY")
     }
 )
 
