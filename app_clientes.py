@@ -276,9 +276,9 @@ st.caption("💡 Select a row to view containers.")
 df_exibicao = df_filtrado[['Shipment Status', 'Nº processo house', 'Ref. cliente', 'Mercadoria', "Total container 40'", 'Qtde. volumes', 'Metros cúbicos', 'ETD_Tratado', 'ETA_Tratado', 'POD_Tratado', 'Final_Tratado', 'Billing Status Translated', 'Saldo a Receber Real USD', 'Previsão Cobrança Futura USD']].copy()
 df_exibicao.columns = ['SHIPMENT STATUS', 'PROCESS', 'PO#', 'CARGO DESCRIPTION', "40HC", 'PALLETS', 'CBM (m³)', 'ETD', 'ETA', 'POD', 'FINAL DESTINATION', 'BILLING STATUS', 'BALANCE', 'FUTURE FORECAST']
 
-# --- APLICAÇÃO DO FORMATO DE DATA INTERNACIONAL (Ex: Jun/02/2026) ---
+# --- CORREÇÃO AQUI: Passando as colunas tratadas (ETD_Tratado e ETA_Tratado) para evitar o AttributeError ---
 df_exibicao['ETD'] = formatar_data_ingles(df_filtrado['ETD_Tratado'])
-df_exibicao['ETA'] = formatar_data_ingles(df_filtrado['ETA/ATA'])
+df_exibicao['ETA'] = formatar_data_ingles(df_filtrado['ETA_Tratado'])
 
 # Renderização da Tabela Executiva
 selecao_tabela = st.dataframe(
